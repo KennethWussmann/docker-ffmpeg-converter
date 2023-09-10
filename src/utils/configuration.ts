@@ -1,6 +1,3 @@
-import { config } from "dotenv";
-config();
-
 import { z } from "zod";
 
 const environmentVariables = z.object({
@@ -27,5 +24,5 @@ const environmentVariables = z.object({
 type EnvironmentConfiguration = z.infer<typeof environmentVariables>;
 
 export class Configuration {
-	constructor(public config: EnvironmentConfiguration = environmentVariables.parse(process.env)) {}
+	constructor(public config: EnvironmentConfiguration = environmentVariables.parse(Bun.env)) {}
 }

@@ -1,8 +1,11 @@
 {
 	"compilerOptions": {
+		"types": ["bun-types"],
+		"moduleResolution": "bundler",
 		"outDir": "./build",
-		"module": "CommonJS",
-		"target": "ESNext",
+		"lib": ["esnext"],
+		"module": "esnext",
+		"target": "esnext",
 		"esModuleInterop": true,
 		"rootDir": "src",
 		"forceConsistentCasingInFileNames": true,

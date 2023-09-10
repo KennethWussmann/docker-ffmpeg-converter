@@ -1,14 +1,13 @@
-ARG NODE_VERSION=18
-FROM node:${NODE_VERSION}-slim AS builder
+FROM oven/bun:1.0 AS builder
 
 WORKDIR /app
 
 COPY . .
 
-RUN npm ci
-RUN npm run bundle
+RUN bun install --frozen-lockfile
+RUN bun run build
 
-FROM gcr.io/distroless/nodejs${NODE_VERSION}
+FROM oven/bun:1.0
 LABEL org.opencontainers.image.source https://github.com/KennethWussmann/docker-ffmpeg-converter
 
 WORKDIR /app
@@ -21,7 +20,7 @@ ENV VERSION=${VERSION}
 
 ENV FFMPEG_PATH=/usr/bin/ffmpeg
 
-COPY --from=builder /app/build/bundle /app/
+COPY --from=builder /app/build /app/
 COPY --from=builder /app/node_modules/ffmpeg-static/ffmpeg /usr/bin/
 
 CMD [ "startService.js" ]

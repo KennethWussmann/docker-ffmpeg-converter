@@ -18,14 +18,14 @@ type LoggerProperties = {
 };
 
 const getLogLevel = (): LogLevel => {
-	const parsingResult = logLevelSchema.safeParse(process.env.LOG_LEVEL);
+	const parsingResult = logLevelSchema.safeParse(Bun.env.LOG_LEVEL);
 	if (!parsingResult.success) {
 		return "info";
 	}
 	return parsingResult.data;
 };
 
-export const createLogger = ({ level, logDestination = process.env.LOG_DESTINATION, meta }: LoggerProperties = {}) =>
+export const createLogger = ({ level, logDestination = Bun.env.LOG_DESTINATION, meta }: LoggerProperties = {}) =>
 	createWinstonLogger({
 		level: level ?? getLogLevel(),
 		format: format.combine(format.timestamp(), format.json()),

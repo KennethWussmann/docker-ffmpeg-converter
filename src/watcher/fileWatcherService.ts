@@ -1,6 +1,5 @@
 import { FileSizeTracker } from "./fileSizeTracker";
 import EventEmitter from "events";
-import { statSync } from "fs";
 import { join } from "path";
 import { Logger } from "winston";
 import { glob } from "zx";
@@ -53,7 +52,7 @@ export class FileWatcherService extends EventEmitter {
 		files
 			.map((file) => join(this.sourceDirectory, file))
 			.forEach((file) => {
-				const stats = statSync(file);
+				const stats = Bun.file(file);
 				const fileSize = stats.size;
 				const tracker = this.trackedFiles.get(file);
 
