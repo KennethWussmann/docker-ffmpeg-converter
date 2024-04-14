@@ -8,7 +8,7 @@ import { glob } from "zx";
 export class FileWatcherService extends EventEmitter {
 	public readonly trackedFiles: Map<string, FileSizeTracker> = new Map();
 	private readonly scanInterval: number;
-	private scanIntervalTimer: NodeJS.Timer | undefined = undefined;
+	private scanIntervalTimer: NodeJS.Timeout | undefined = undefined;
 
 	constructor(
 		private logger: Logger,
