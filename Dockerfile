@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN npm ci
+RUN npm install
 RUN npm run bundle
 
 FROM gcr.io/distroless/nodejs${NODE_VERSION}
