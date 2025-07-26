@@ -17,6 +17,18 @@ export class FFMPEGService {
 
 	private splitArgs = (args: string) => args.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
 
+	getVersion = async (): Promise<string> => {
+		try {
+			const result = await execa(this.ffmpegPath, ["-version"]);
+			const firstLine = result.stdout.split("\n")[0];
+			const versionMatch = firstLine.match(/ffmpeg version ([^\s]+)/);
+			return versionMatch ? versionMatch[1] : "unknown";
+		} catch (error) {
+			this.logger.error("Failed to get FFmpeg version", { error });
+			return "unknown";
+		}
+	};
+
 	exec = async (abortSignal: AbortSignal, sourceFilePath: string): Promise<void> => {
 		return new Promise((resolvePromise, reject) => {
 			const { name } = parse(sourceFilePath);

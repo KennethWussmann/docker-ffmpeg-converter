@@ -14,9 +14,10 @@ export class ConverterService {
 		this.fileWatcherService.onNewFile(this.onNewFile);
 	}
 
-	start = () => {
+	start = async () => {
 		this.logger.info("Starting converter service", { version: this.version });
-		this.logger.info("This software uses libraries from the FFmpeg project under the LGPLv2.1");
+		const ffmpegVersion = await this.ffmpegService.getVersion();
+		this.logger.info("This software uses libraries from the FFmpeg project under the LGPLv2.1", { ffmpegVersion });
 		this.fileWatcherService.start();
 	};
 
