@@ -11,11 +11,20 @@ env:
   FORCE_COLOR: 1
 
 jobs:
-  release:
-    runs-on: [self-hosted, arm64, cb]
+  build:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: [self-hosted, arm64, cb]
+            arch: arm64
+          - runner: ubuntu-latest
+            arch: amd64
     permissions:
       packages: write
       contents: read
+    outputs:
+      SHORT_SHA: ${{ steps.git-commit.outputs.SHORT_SHA }}
     steps:
       - uses: actions/checkout@v4
       - name: Get git commit
@@ -24,5 +33,25 @@ jobs:
       - uses: ./.github/actions/docker-publish
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          tags: ghcr.io/kennethwussmann/docker-ffmpeg-converter:develop,ghcr.io/kennethwussmann/docker-ffmpeg-converter:${{ steps.git-commit.outputs.SHORT_SHA }}
+          tags: ghcr.io/kennethwussmann/docker-ffmpeg-converter:${{ matrix.arch }}-${{ steps.git-commit.outputs.SHORT_SHA }}
           build-args: VERSION=${{ steps.git-commit.outputs.SHORT_SHA }}
+
+  create-and-push-manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Login to GitHub Packages Docker Registry
+        uses: docker/login-action@v3.4.0
+        with:
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+      - name: Create and push Docker manifest
+        run: |
+          docker manifest create ghcr.io/kennethwussmann/docker-ffmpeg-converter:develop \
+            --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:amd64-${{ needs.build.outputs.SHORT_SHA }} \
+            --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:arm64-${{ needs.build.outputs.SHORT_SHA }}
+          docker manifest push ghcr.io/kennethwussmann/docker-ffmpeg-converter:develop
