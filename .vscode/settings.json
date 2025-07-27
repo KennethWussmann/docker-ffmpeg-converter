@@ -1,10 +1,4 @@
 {
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "rome.rome",
-  "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "rome.rome"
-  }
+  "editor.defaultFormatter": "biomejs.biome"
 }
