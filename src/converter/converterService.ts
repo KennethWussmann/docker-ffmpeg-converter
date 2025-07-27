@@ -8,6 +8,7 @@ export class ConverterService {
     private logger: Logger,
     private fileWatcherService: FileWatcherService,
     private ffmpegService: FFMPEGService,
+    private removeDelay: number,
     private removeSourceFileAfterConvert: boolean,
     private version: string,
   ) {
@@ -40,11 +41,15 @@ export class ConverterService {
     try {
       await this.ffmpegService.exec(this.abortController.signal, file);
       this.logger.info("Successfully converted file", { file });
-      if (this.removeSourceFileAfterConvert) {
-        await this.removeSourceFile(file);
-      } else {
+
+      if (!this.removeSourceFileAfterConvert) {
         this.logger.debug("Not removing source file because setting is disabled");
+        return;
       }
+
+      setTimeout(async () => {
+        await this.removeSourceFile(file);
+      }, this.removeDelay * 1000);
     } catch (error) {
       this.logger.error("Failed to convert file", { file, error });
     }

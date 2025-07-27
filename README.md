@@ -77,6 +77,11 @@ Configure the container through environment variables. Here's a breakdown of wha
     <td><code>true</code> or <code>false</code>. Whether or not to delete source files after successful conversion</td>
   </tr>
   <tr>
+    <td><code>REMOVE_SOURCE_AFTER_CONVERT_DELAY</code></td>
+    <td>No (default: <code>0</code>)</td>
+    <td>Delay in seconds before removing the source file after successful conversion. Ignored if <code>REMOVE_SOURCE_AFTER_CONVERT</code> is not set to <code>true</code>.</td>
+  </tr>
+  <tr>
     <td><code>SCAN_INTERVAL</code></td>
     <td>No (default: <code>10</code>)</td>
     <td>Interval in seconds when the service will search for new files</td>

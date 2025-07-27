@@ -7,7 +7,6 @@
     "dev": "tsx src/startService.ts",
     "build": "wireit",
     "bundle": "wireit",
-    "format": "wireit",
     "check": "wireit",
     "check:fix": "wireit",
     "ci": "wireit",
