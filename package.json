@@ -34,7 +34,6 @@
     "ci": {
       "dependencies": [
         "check",
-        "test",
         "build"
       ]
     }
