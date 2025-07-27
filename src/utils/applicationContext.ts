@@ -14,6 +14,7 @@ export class ApplicationContext {
 			this.rootLogger.child({ name: "FileWatcherService" }),
 			this.configuration.config.SOURCE_DIRECTORY_PATH,
 			this.configuration.config.GLOB_PATTERNS,
+			this.configuration.config.COUNTERPART_GLOB_PATTERNS,
 			this.configuration.config.SCAN_INTERVAL,
 			this.configuration.config.FILE_UNCHANGED_INTERVALS,
 		);

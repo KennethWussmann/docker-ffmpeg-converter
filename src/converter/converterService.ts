@@ -34,10 +34,10 @@ export class ConverterService {
 		await rm(file);
 	};
 
-	private onNewFile = async (file: string) => {
+	private onNewFile = async (file: string, counterpart?: string) => {
 		this.logger.info("Converting new file", { file });
 		try {
-			await this.ffmpegService.exec(this.abortController.signal, file);
+			await this.ffmpegService.exec(this.abortController.signal, file, counterpart);
 			this.logger.info("Successfully converted file", { file });
 
 			if (!this.removeSourceFileAfterConvert) {
@@ -47,6 +47,7 @@ export class ConverterService {
 
 			setTimeout(async () => {
 				await this.removeSourceFile(file);
+				if (counterpart) await this.removeSourceFile(counterpart);
 			}, this.removeDelay * 1000);
 		} catch (error) {
 			this.logger.error("Failed to convert file", { file, error });

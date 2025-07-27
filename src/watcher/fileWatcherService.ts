@@ -1,7 +1,7 @@
 import { FileSizeTracker } from "./fileSizeTracker";
 import EventEmitter from "events";
 import { statSync } from "fs";
-import { join } from "path";
+import { join, parse } from "path";
 import { Logger } from "winston";
 import { glob } from "zx";
 
@@ -14,6 +14,7 @@ export class FileWatcherService extends EventEmitter {
 		private logger: Logger,
 		private sourceDirectory: string,
 		private patterns: string[],
+		private counterpartPatterns: string[] | undefined,
 		scanInterval: number,
 		private unchangedIntervals: number,
 	) {
@@ -42,14 +43,19 @@ export class FileWatcherService extends EventEmitter {
 		this.scanIntervalTimer = undefined;
 	};
 
-	onNewFile = (callback: (file: string) => void | Promise<void>) => this.on("newFile", callback);
+	onNewFile = (callback: (file: string, counterpart?: string) => void | Promise<void>) => this.on("newFile", callback);
 
 	private scan = async () => {
 		const files = await glob(this.patterns, { cwd: this.sourceDirectory });
+		const counterpartFiles = this.counterpartPatterns
+			? await glob(this.counterpartPatterns, { cwd: this.sourceDirectory })
+			: undefined;
+
 		this.logger.debug(`Found ${files.length} file${files.length !== 1 ? "s" : ""}`, {
 			sourceDirectory: this.sourceDirectory,
 			files,
 		});
+
 		files
 			.map((file) => join(this.sourceDirectory, file))
 			.forEach((file) => {
@@ -57,7 +63,22 @@ export class FileWatcherService extends EventEmitter {
 				const fileSize = stats.size;
 				const tracker = this.trackedFiles.get(file);
 
+				const getCounterpart = () => {
+					if (!counterpartFiles) return null;
+
+					const { name } = parse(file);
+					const counterparts = counterpartFiles.filter((f) => parse(f).name === name);
+					return counterparts.length > 0 ? join(this.sourceDirectory, counterparts[0]) : null;
+				};
+
+				const counterpart = getCounterpart();
+
 				if (tracker) {
+					if (this.counterpartPatterns && !counterpart) {
+						// counterpart is required but does not exist
+						return;
+					}
+
 					if (tracker.consumed) {
 						// file was emitted once and is ignored from now on
 						return;
@@ -70,7 +91,7 @@ export class FileWatcherService extends EventEmitter {
 						this.logger.debug("Emitting new file event for unchanged file", { file });
 						this.logger.info("New unchanged file found", { file });
 						tracker.setConsumed();
-						this.emit("newFile", file);
+						this.emit("newFile", file, counterpart || undefined);
 					}
 				} else {
 					this.logger.debug("Caching new file", { file });

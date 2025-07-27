@@ -14,7 +14,7 @@ export class FFMPEGService {
 
 	private renderAndSplitArgs = (args: string, ...params: string[]) => {
 		let i = 0;
-		return this.splitArgs(args).map((a) => a.replace(/%s/g, () => params[i++]));
+		return this.splitArgs(args).map((a) => a.replace(/%s/g, () => params.filter((p) => p.length > 0)[i++]));
 	};
 
 	getVersion = async (): Promise<string> => {
@@ -29,12 +29,13 @@ export class FFMPEGService {
 		}
 	};
 
-	exec = async (abortSignal: AbortSignal, sourceFilePath: string): Promise<void> => {
+	exec = async (abortSignal: AbortSignal, sourceFilePath: string, counterpartFilePath?: string): Promise<void> => {
 		return new Promise((resolvePromise, reject) => {
 			const { name } = parse(sourceFilePath);
 			const args = this.renderAndSplitArgs(
 				this.ffmpegArgs,
 				resolve(sourceFilePath),
+				counterpartFilePath ? resolve(counterpartFilePath) : "",
 				join(resolve(this.destinationDirectory), name),
 			);
 			this.logger.debug("Launching ffmpeg process", { bin: this.ffmpegPath, args, sourceFilePath });

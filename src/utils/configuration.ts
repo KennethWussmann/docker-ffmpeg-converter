@@ -6,6 +6,10 @@ import { z } from "zod";
 const environmentVariables = z.object({
 	VERSION: z.string().default("develop"),
 	GLOB_PATTERNS: z.string().transform((s) => s.split(",")),
+	COUNTERPART_GLOB_PATTERNS: z
+		.string()
+		.transform((s) => s.split(","))
+		.optional(),
 	SCAN_INTERVAL: z
 		.string()
 		.transform((s) => parseInt(s, 10))
