@@ -1,69 +1,72 @@
 {
-	"name": "docker-ffmpeg-converter",
-	"version": "1.0.0",
-	"description": "Docker image that watches a directory, converts files and outputs them to another directory",
-	"main": "src/index.ts",
-	"scripts": {
-		"dev": "tsx src/startService.ts",
-		"build": "wireit",
-		"bundle": "wireit",
-		"format": "wireit",
-		"ci": "wireit",
-		"dependency-update": "npm-check-updates -u --filterVersion \"/^[~^<>]| - |\\.x$/\" --deep && npm i",
-		"prepare": "husky install"
-	},
-	"wireit": {
-		"build": {
-			"command": "tsc"
-		},
-		"bundle": {
-			"command": "esbuild build/startService.js --bundle --platform=node --target=node22 --outdir=./build/bundle",
-			"dependencies": ["build"]
-		},
-		"lint:check": {
-			"command": "rome check ."
-		},
-		"lint:fix": {
-			"command": "rome check --apply-unsafe ."
-		},
-		"format:check": {
-			"command": "rome format ."
-		},
-		"format:fix": {
-			"command": "rome format --write ."
-		},
-		"format": {
-			"dependencies": ["format:fix", "lint:fix"]
-		},
-		"ci": {
-			"dependencies": ["lint:check", "format:check", "build"]
-		}
-	},
-	"keywords": [],
-	"author": "Kenneth Wußmann",
-	"license": "GPL-3.0",
-	"lint-staged": {
-		"*.ts": "rome check --apply-unsafe",
-		"*.{ts,json}": "rome format --write"
-	},
-	"devDependencies": {
-		"@types/node": "^22",
-		"esbuild": "^0.25.8",
-		"ffmpeg-static": "^5.2.0",
-		"husky": "^9.1.7",
-		"lint-staged": "^16.1.2",
-		"npm-check-updates": "^18.0.2",
-		"rome": "12.1.3",
-		"tsx": "^4.20.3",
-		"typescript": "^5.8.3",
-		"wireit": "^0.14.12"
-	},
-	"dependencies": {
-		"dotenv": "^17.2.1",
-		"execa": "^7.2.0",
-		"winston": "^3.17.0",
-		"winston-daily-rotate-file": "^5.0.0",
-		"zod": "^4.0.10",
-		"zx": "^8.7.1"
-	}
+  "name": "docker-ffmpeg-converter",
+  "version": "1.0.0",
+  "description": "Docker image that watches a directory, converts files and outputs them to another directory",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx src/startService.ts",
+    "build": "wireit",
+    "bundle": "wireit",
+    "format": "wireit",
+    "check": "wireit",
+    "check:fix": "wireit",
+    "test": "wireit",
+    "ci": "wireit",
+    "dependency-update": "npm-check-updates -u --filterVersion \"/^[~^<>]| - |\\.x$/\" --deep && npm i",
+    "prepare": "husky install"
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc"
+    },
+    "bundle": {
+      "command": "esbuild build/startService.js --bundle --platform=node --target=node22 --outdir=./build/bundle",
+      "dependencies": [
+        "test",
+        "build"
+      ]
+    },
+    "check": {
+      "command": "biome check"
+    },
+    "check:fix": {
+      "command": "biome check --write --unsafe --no-errors-on-unmatched"
+    },
+    "ci": {
+      "dependencies": [
+        "check",
+        "test",
+        "build"
+      ]
+    }
+  },
+  "keywords": [],
+  "author": "Kenneth Wußmann",
+  "license": "GPL-3.0",
+  "lint-staged": {
+    "*": [
+      "biome check --no-errors-on-unmatched --files-ignore-unknown=true"
+    ]
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.1.2",
+    "@types/node": "^22",
+    "esbuild": "^0.25.8",
+    "ffmpeg-static": "^5.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2",
+    "npm-check-updates": "^18.0.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
+    "wireit": "^0.14.12"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "execa": "^7.2.0",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "zod": "^4.0.10",
+    "zx": "^8.7.1"
+  }
 }
