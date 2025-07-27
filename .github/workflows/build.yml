@@ -1,5 +1,10 @@
 name: build
-on: [push]
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 env:
   FORCE_COLOR: 1
