@@ -10,7 +10,6 @@
     "format": "wireit",
     "check": "wireit",
     "check:fix": "wireit",
-    "test": "wireit",
     "ci": "wireit",
     "dependency-update": "npm-check-updates -u --filterVersion \"/^[~^<>]| - |\\.x$/\" --deep && npm i",
     "prepare": "husky"
