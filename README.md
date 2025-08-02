@@ -20,6 +20,7 @@ Deploying docker-ffmpeg-converter is a breeze with Docker Compose. Below is an e
 ```YAML
 version: "3.9"
 services: 
+  # CPU-only conversion
   video-converter:
     image: ghcr.io/kennethwussmann/docker-ffmpeg-converter:latest
     volumes:
@@ -31,15 +32,38 @@ services:
       - DESTINATION_DIRECTORY_PATH=/data/output
       - GLOB_PATTERNS=*.webm
       - FFMPEG_ARGS=-y -fflags +genpts -i %s -r 24 %s.mp4
+  
+  # GPU-accelerated conversion (requires NVIDIA GPU)
+  video-converter-gpu:
+    image: ghcr.io/kennethwussmann/docker-ffmpeg-converter:gpu-latest
+    runtime: nvidia
+    volumes:
+      - ./data:/data
+    environment:
+      - SOURCE_DIRECTORY_PATH=/data/input
+      - DESTINATION_DIRECTORY_PATH=/data/output
+      - GLOB_PATTERNS=*.webm
+      - FFMPEG_ARGS=-y -hwaccel cuda -i %s -c:v h264_nvenc %s.mp4
+      - NVIDIA_VISIBLE_DEVICES=all
 ```
 
 ### 🏷️ Tags
 
-This image is built for `arm64` and `amd64`.
+This image is built for `arm64` and `amd64` architectures with both CPU and GPU variants.
 
-- `latest` - Latest stable release
+#### CPU Variants (arm64 + amd64)
+- `latest` - Latest stable release (CPU-only, uses distroless Node.js base)
 - `x.x.x` - Specific version under Semver ([See all versions](https://github.com/KennethWussmann/docker-ffmpeg-converter/pkgs/container/docker-ffmpeg-converter/versions))
-- `develop` - Unstable pre-release development version
+- `develop` - Unstable pre-release development version (CPU-only)
+
+#### GPU Variants (amd64 only)
+- `gpu-latest` - Latest stable release with NVIDIA GPU acceleration
+- `gpu-x.x.x` - Specific version with GPU support
+- `gpu-develop` - Unstable pre-release development version with GPU support
+
+#### FFMPEG Details
+- **CPU variants**: Uses static FFMPEG 7.1 binaries from [johnvansickle.com](https://johnvansickle.com/ffmpeg/)
+- **GPU variants**: Uses FFMPEG 7.1 with NVIDIA GPU support from [jrottenberg/ffmpeg](https://hub.docker.com/r/jrottenberg/ffmpeg/) base image
 
 ### 🔧 Configuration
 
@@ -127,7 +151,7 @@ Here is a more complex example on how to use mulitple instances:
 ```YAML
 version: "3.9"
 services: 
-  # Same as above
+  # CPU conversion
   webm-to-mp4:
     image: ghcr.io/kennethwussmann/docker-ffmpeg-converter:latest
     volumes:
