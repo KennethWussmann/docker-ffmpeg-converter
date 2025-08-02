@@ -21,6 +21,7 @@ export class ConverterService {
     this.logger.info("This software uses libraries from the FFmpeg project under the LGPLv2.1", {
       ffmpegVersion,
     });
+    await this.ffmpegService.logSystemInfo();
     this.fileWatcherService.start();
   };
 
