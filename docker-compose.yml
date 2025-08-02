@@ -13,7 +13,6 @@ services:
       - LOG_DESTINATION=/data/logs
       - SOURCE_DIRECTORY_PATH=/data/input
       - DESTINATION_DIRECTORY_PATH=/data/output
-      - FFMPEG_PATH=/usr/bin/ffmpeg
 
   ffmpeg-gpu:
     build: 
@@ -29,6 +28,5 @@ services:
       - LOG_DESTINATION=/data/logs
       - SOURCE_DIRECTORY_PATH=/data/input
       - DESTINATION_DIRECTORY_PATH=/data/output
-      - FFMPEG_PATH=/usr/bin/ffmpeg
       - NVIDIA_VISIBLE_DEVICES=all
     runtime: nvidia

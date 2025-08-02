@@ -1,6 +1,6 @@
 # Common build args
 ARG NODE_VERSION=22
-ARG FFMPEG_VERSION=7.1
+ARG FFMPEG_VERSION=7.0.2
 ARG FFMPEG_VARIANT=cpu
 ARG TARGETARCH
 
@@ -50,7 +50,6 @@ RUN if [ -z "${TARGETARCH}" ]; then \
 # Final CPU Image (distroless)
 ####################
 FROM gcr.io/distroless/nodejs${NODE_VERSION} AS cpu-final
-
 WORKDIR /app
 
 ARG NODE_ENV=production
@@ -68,7 +67,7 @@ CMD ["startService.js"]
 ####################
 # Final GPU Image (base = jrottenberg/ffmpeg)
 ####################
-FROM jrottenberg/ffmpeg:${FFMPEG_VERSION}-nvidia AS gpu-final
+FROM jrottenberg/ffmpeg:${FFMPEG_VERSION}-nvidia2204 AS gpu-final
 
 ARG NODE_VERSION=22
 
@@ -84,9 +83,9 @@ ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}
 ARG VERSION=develop
 ENV VERSION=${VERSION}
-ENV FFMPEG_PATH=/usr/bin/ffmpeg
+ENV FFMPEG_PATH=/opt/ffmpeg/bin/ffmpeg
 
 COPY --from=builder /app/build/bundle /app/
 COPY --from=builder /app/node_modules /app/node_modules
 
-CMD ["node", "startService.js"]
+ENTRYPOINT ["node", "/app/startService.js"]

@@ -48,7 +48,6 @@
     "@biomejs/biome": "^2.1.2",
     "@types/node": "^22",
     "esbuild": "^0.25.8",
-    "ffmpeg-static": "^5.2.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
     "npm-check-updates": "^18.0.2",
