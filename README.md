@@ -18,7 +18,6 @@ Whether you are building a small pipeline or conducting background conversions o
 Deploying docker-ffmpeg-converter is a breeze with Docker Compose. Below is an example YAML configuration file:
 
 ```YAML
-version: "3.9"
 services: 
   # CPU-only conversion
   video-converter:
@@ -149,7 +148,6 @@ Resulting command:
 Here is a more complex example on how to use mulitple instances:
 
 ```YAML
-version: "3.9"
 services: 
   # CPU conversion
   webm-to-mp4:
