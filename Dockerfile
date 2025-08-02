@@ -83,7 +83,7 @@ ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}
 ARG VERSION=develop
 ENV VERSION=${VERSION}
-ENV FFMPEG_PATH=/opt/ffmpeg/bin/ffmpeg
+ENV FFMPEG_PATH=/usr/local/bin/ffmpeg
 
 COPY --from=builder /app/build/bundle /app/
 COPY --from=builder /app/node_modules /app/node_modules
