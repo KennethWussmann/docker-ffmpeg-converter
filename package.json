@@ -20,7 +20,6 @@
     "bundle": {
       "command": "esbuild build/startService.js --bundle --platform=node --target=node22 --outdir=./build/bundle",
       "dependencies": [
-        "test",
         "build"
       ]
     },
