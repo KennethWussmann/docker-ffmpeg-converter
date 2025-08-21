@@ -1,11 +1,16 @@
 import { config } from "dotenv";
 
-config();
+config({ quiet: true });
 
 import { z } from "zod";
 
 const environmentVariables = z.object({
   VERSION: z.string().default("develop"),
+
+  LOG_LEVEL: z.enum(["debug", "info", "warn", "error", "fatal"]).default("info"),
+  LOG_FORMAT: z.enum(["json", "text"]).default("json"),
+  LOG_DESTINATION: z.string().optional(),
+
   GLOB_PATTERNS: z.string().transform((s) => s.split(",")),
   SCAN_INTERVAL: z
     .string()
@@ -27,6 +32,8 @@ const environmentVariables = z.object({
 });
 
 type EnvironmentConfiguration = z.infer<typeof environmentVariables>;
+export type LogLevel = EnvironmentConfiguration["LOG_LEVEL"];
+export type LogFormat = EnvironmentConfiguration["LOG_FORMAT"];
 
 export class Configuration {
   constructor(public config: EnvironmentConfiguration = environmentVariables.parse(process.env)) {}

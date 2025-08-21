@@ -91,6 +91,21 @@ Configure the container through environment variables. Here's a breakdown of wha
     <td>No (default: <code>3</code>)</td>
     <td>How many cycles the service will wait for new files to stay unchanged until conversion starts. See below for detailed info.</td>
   </tr>
+  <tr>
+    <td><code>LOG_LEVEL</code></td>
+    <td>No (default: <code>info</code>)</td>
+    <td>debug, info, warn, error or fatal</td>
+  </tr>
+  <tr>
+    <td><code>LOG_FORMAT</code></td>
+    <td>No (default: <code>json</code>)</td>
+    <td><code>json</code> or <code>text</code>. Whether to log to console or file in JSON or simple text.</td>
+  </tr>
+  <tr>
+    <td><code>LOG_DESTINATION</code></td>
+    <td>No (default: off)</td>
+    <td>Path to a logs directory. Example: <code>./logs</code>. When given, it will additionally write logs to files and rotates them daily.</td>
+  </tr>
 </table>
 
 ## 💼 How the Service Works
