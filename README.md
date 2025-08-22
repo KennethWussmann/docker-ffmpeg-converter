@@ -13,25 +13,24 @@ docker-ffmpeg-converter automates the process of file conversion by:
 
 Whether you are building a small pipeline or conducting background conversions of multiple files, docker-ffmpeg-converter efficiently handles it all. Run multiple instances and make your conversion process more versatile and robust.
 
-## 🚀 Deployment
+## 🚀 Quick Start
 
-Deploying docker-ffmpeg-converter is a breeze with Docker Compose. Below is an example YAML configuration file:
+Get started in minutes with our ready-to-use examples! Here's a simple WebM to MP4 converter:
 
-```YAML
-version: "3.9"
+```yaml
 services: 
-  video-converter:
+  webm-to-mp4-converter:
     image: ghcr.io/kennethwussmann/docker-ffmpeg-converter:latest
     volumes:
-      # This is where we will add input files and get output files
       - ./data:/data
     environment:
-      # See below for all options and their meaning. This is just the required set.
       - SOURCE_DIRECTORY_PATH=/data/input
       - DESTINATION_DIRECTORY_PATH=/data/output
       - GLOB_PATTERNS=*.webm
       - FFMPEG_ARGS=-y -fflags +genpts -i %s -r 24 %s.mp4
 ```
+
+**🎯 Want more examples?** Check out our [example scenarios](./docs/README.md) for video compression, thumbnail extraction, GIF creation, and complex processing pipelines!
 
 ### 🏷️ Tags
 
@@ -135,40 +134,15 @@ Resulting command:
 - **Scan Interval**: Adjust the polling frequency with `SCAN_INTERVAL`, defining the seconds between each search.
 - **File Unchanged Intervals**: Customize the number of cycles to wait for file size stability using `FILE_UNCHANGED_INTERVALS`.
 
-## 🔗 Pipeline example
+## 📋 Example Scenarios
 
-Here is a more complex example on how to use mulitple instances:
+Explore our comprehensive collection of ready-to-use examples:
 
-```YAML
-version: "3.9"
-services: 
-  # Same as above
-  webm-to-mp4:
-    image: ghcr.io/kennethwussmann/docker-ffmpeg-converter:latest
-    volumes:
-      # This is where we will add input files and get output files
-      - ./data:/data
-    environment:
-      - SOURCE_DIRECTORY_PATH=/data/input
-      - DESTINATION_DIRECTORY_PATH=/data/output
-      - GLOB_PATTERNS=*.webm
-      # Convert *.webm files to .mp4
-      - FFMPEG_ARGS=-y -fflags +genpts -i %s -r 24 %s.mp4
+| 🎯 **Popular Use Cases** | 🔧 **Advanced Workflows** |
+|-------------------------|----------------------------|
+| • [WebM to MP4 Conversion](./docs/webm-to-mp4.md)<br>• [Video Thumbnail Extraction](./docs/video-thumbnails.md)<br>• [Audio Extraction](./docs/audio-extraction.md)<br>• [Video Compression](./docs/video-compression.md) | • [Multi-Stage Processing Pipeline](./docs/batch-processing-pipeline.md)<br>• [GIF Creation](./docs/gif-creation.md)<br>• [Video Resizing](./docs/video-resizing.md)<br>• [Subtitle Embedding](./docs/subtitle-embedding.md) |
 
-  # Another instance to take thumbnails from the *.webm files
-  webm-thumbnails:
-    image: ghcr.io/kennethwussmann/docker-ffmpeg-converter:latest
-    volumes:
-      - ./data:/data
-    environment:
-      - SOURCE_DIRECTORY_PATH=/data/input
-      - DESTINATION_DIRECTORY_PATH=/data/output
-      - GLOB_PATTERNS=*.webm
-      # Take multiple thumbnails from *.webm files
-      - FFMPEG_ARGS=-y -i %s -vf fps=1/4 %s_%04d.png
-```
-
-The output directory will then contain multiple thumbnails and a converted MP4 file of our source material. Because the containers run in parallel they finish quickly as both tasks can run simulatanously.
+**💡 Pro Tip:** Run multiple services simultaneously for parallel processing! Check out our [batch processing pipeline](./docs/batch-processing-pipeline.md) example.
 
 ## 🎉 Conclusion
 docker-ffmpeg-converter is a great solution for seamless media conversion tasks, providing robust customization and a simplified deployment process. Experience the ease of automation with this powerful Docker service.
