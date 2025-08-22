@@ -1,7 +1,10 @@
-version: "3.9"
 services:
-  ffmpeg:
-    build: .
+  ffmpeg-cpu:
+    build: 
+      context: .
+      target: cpu-final
+      args:
+        - FFMPEG_VARIANT=cpu
     env_file: ./.env
     volumes:
       - ./data:/data
@@ -10,4 +13,20 @@ services:
       - LOG_DESTINATION=/data/logs
       - SOURCE_DIRECTORY_PATH=/data/input
       - DESTINATION_DIRECTORY_PATH=/data/output
-      - FFMPEG_PATH=/usr/bin/ffmpeg
+
+  ffmpeg-gpu:
+    build: 
+      context: .
+      target: gpu-final
+      args:
+        - FFMPEG_VARIANT=gpu
+    env_file: ./.env
+    volumes:
+      - ./data:/data
+    environment:
+      - LOG_LEVEL=info
+      - LOG_DESTINATION=/data/logs
+      - SOURCE_DIRECTORY_PATH=/data/input
+      - DESTINATION_DIRECTORY_PATH=/data/output
+      - NVIDIA_VISIBLE_DEVICES=all
+    runtime: nvidia

@@ -18,8 +18,19 @@ jobs:
         include:
           - runner: ubuntu-24.04-arm
             arch: arm64
+            variant: cpu
+            target: cpu-final
+            suffix: ""
           - runner: ubuntu-latest
             arch: amd64
+            variant: cpu
+            target: cpu-final
+            suffix: ""
+          - runner: ubuntu-latest
+            arch: amd64
+            variant: gpu
+            target: gpu-final
+            suffix: "-gpu"
     permissions:
       packages: write
       contents: read
@@ -29,12 +40,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Get version
         id: vars
-        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/docker-publish
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          tags: ghcr.io/kennethwussmann/docker-ffmpeg-converter:${{ matrix.arch }}-${{ steps.vars.outputs.tag }}
-          build-args: VERSION=${{ steps.vars.outputs.tag }}
+          tags: ghcr.io/kennethwussmann/docker-ffmpeg-converter:${{ matrix.arch }}${{ matrix.suffix }}-${{ steps.vars.outputs.tag }}
+          build-args: |
+            VERSION=${{ steps.vars.outputs.tag }}
+            FFMPEG_VARIANT=${{ matrix.variant }}
+          target: ${{ matrix.target }}
 
   create-and-push-manifest:
     needs: build
@@ -44,13 +58,14 @@ jobs:
       contents: read
     steps:
       - name: Login to GitHub Packages Docker Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3.4.0
         with:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
           registry: ghcr.io
       - name: Create and push Docker manifest
         run: |
+          # CPU variants
           docker manifest create ghcr.io/kennethwussmann/docker-ffmpeg-converter:${{ needs.build.outputs.tag }} \
             --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:amd64-${{ needs.build.outputs.tag }} \
             --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:arm64-${{ needs.build.outputs.tag }}
@@ -59,3 +74,11 @@ jobs:
             --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:amd64-${{ needs.build.outputs.tag }} \
             --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:arm64-${{ needs.build.outputs.tag }}
           docker manifest push ghcr.io/kennethwussmann/docker-ffmpeg-converter:latest
+          
+          # GPU variants
+          docker manifest create ghcr.io/kennethwussmann/docker-ffmpeg-converter:gpu-${{ needs.build.outputs.tag }} \
+            --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:amd64-gpu-${{ needs.build.outputs.tag }}
+          docker manifest push ghcr.io/kennethwussmann/docker-ffmpeg-converter:gpu-${{ needs.build.outputs.tag }}
+          docker manifest create ghcr.io/kennethwussmann/docker-ffmpeg-converter:gpu-latest \
+            --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:amd64-gpu-${{ needs.build.outputs.tag }}
+          docker manifest push ghcr.io/kennethwussmann/docker-ffmpeg-converter:gpu-latest

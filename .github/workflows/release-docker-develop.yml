@@ -18,8 +18,19 @@ jobs:
         include:
           - runner: ubuntu-24.04-arm
             arch: arm64
+            variant: cpu
+            target: cpu-final
+            suffix: ""
           - runner: ubuntu-latest
             arch: amd64
+            variant: cpu
+            target: cpu-final
+            suffix: ""
+          - runner: ubuntu-latest
+            arch: amd64
+            variant: gpu
+            target: gpu-final
+            suffix: "-gpu"
     permissions:
       packages: write
       contents: read
@@ -33,8 +44,11 @@ jobs:
       - uses: ./.github/actions/docker-publish
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          tags: ghcr.io/kennethwussmann/docker-ffmpeg-converter:${{ matrix.arch }}-${{ steps.git-commit.outputs.SHORT_SHA }}
-          build-args: VERSION=${{ steps.git-commit.outputs.SHORT_SHA }}
+          tags: ghcr.io/kennethwussmann/docker-ffmpeg-converter:${{ matrix.arch }}${{ matrix.suffix }}-${{ steps.git-commit.outputs.SHORT_SHA }}
+          build-args: |
+            VERSION=${{ steps.git-commit.outputs.SHORT_SHA }}
+            FFMPEG_VARIANT=${{ matrix.variant }}
+          target: ${{ matrix.target }}
 
   create-and-push-manifest:
     needs: build
@@ -51,7 +65,13 @@ jobs:
           registry: ghcr.io
       - name: Create and push Docker manifest
         run: |
+          # CPU variants
           docker manifest create ghcr.io/kennethwussmann/docker-ffmpeg-converter:develop \
             --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:amd64-${{ needs.build.outputs.SHORT_SHA }} \
             --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:arm64-${{ needs.build.outputs.SHORT_SHA }}
           docker manifest push ghcr.io/kennethwussmann/docker-ffmpeg-converter:develop
+          
+          # GPU variants
+          docker manifest create ghcr.io/kennethwussmann/docker-ffmpeg-converter:gpu-develop \
+            --amend ghcr.io/kennethwussmann/docker-ffmpeg-converter:amd64-gpu-${{ needs.build.outputs.SHORT_SHA }}
+          docker manifest push ghcr.io/kennethwussmann/docker-ffmpeg-converter:gpu-develop

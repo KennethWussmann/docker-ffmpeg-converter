@@ -10,6 +10,9 @@ inputs:
   build-args:
     description: "Build args"
     required: false
+  target:
+    description: "Build target stage"
+    required: false
 runs:
   using: "composite"
   steps:
@@ -25,3 +28,4 @@ runs:
         push: true
         tags: ${{ inputs.tags }}
         build-args: ${{ inputs.build-args }}
+        target: ${{ inputs.target }}
