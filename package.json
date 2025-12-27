@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.10",
-    "@types/node": "^24",
+    "@types/node": "^25",
     "esbuild": "^0.27.2",
     "ffmpeg-static": "^5.3.0",
     "husky": "^9.1.7",
@@ -58,7 +58,7 @@
   },
   "dependencies": {
     "dotenv": "^17.2.3",
-    "execa": "8.0.1",
+    "execa": "9.6.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
     "zod": "^4.2.1",
