@@ -1,12 +1,13 @@
-ARG NODE_VERSION=22
+ARG NODE_VERSION=24
 FROM node:${NODE_VERSION}-slim AS builder
 
 WORKDIR /app
 
 COPY . .
 
-RUN npm install
-RUN npm run bundle
+RUN npm install -g pnpm
+RUN pnpm install --frozen-lockfile
+RUN pnpm run bundle
 
 FROM gcr.io/distroless/nodejs${NODE_VERSION}
 LABEL org.opencontainers.image.source https://github.com/KennethWussmann/docker-ffmpeg-converter
