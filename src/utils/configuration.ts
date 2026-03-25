@@ -29,6 +29,10 @@ const environmentVariables = z.object({
   REMOVE_SOURCE_AFTER_CONVERT: z.stringbool().default(false),
   FFMPEG_PATH: z.string(),
   FFMPEG_ARGS: z.string(),
+  CONCURRENCY: z
+    .string()
+    .transform((s) => parseInt(s, 10))
+    .default(1),
 });
 
 type EnvironmentConfiguration = z.infer<typeof environmentVariables>;

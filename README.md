@@ -92,6 +92,11 @@ Configure the container through environment variables. Here's a breakdown of wha
     <td>How many cycles the service will wait for new files to stay unchanged until conversion starts. See below for detailed info.</td>
   </tr>
   <tr>
+    <td><code>CONCURRENCY</code></td>
+    <td>No (default: <code>1</code>)</td>
+    <td>Maximum number of parallel ffmpeg conversion processes.</td>
+  </tr>
+  <tr>
     <td><code>LOG_LEVEL</code></td>
     <td>No (default: <code>info</code>)</td>
     <td>debug, info, warn, error or fatal</td>
