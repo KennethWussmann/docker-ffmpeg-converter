@@ -38,7 +38,7 @@ export class FFMPEGService {
         join(resolve(this.destinationDirectory), name),
       );
       this.logger.debug("Launching ffmpeg process", { bin: this.ffmpegPath, args, sourceFilePath });
-      const subProcess = execa(this.ffmpegPath, args, { cancelSignal: abortSignal });
+      const subProcess = execa(this.ffmpegPath, args, { signal: abortSignal });
       const subProcessLogger = this.logger.child({ name: "FFMPEGService#subprocess" });
 
       subProcess.on("close", (code, signal) => {
