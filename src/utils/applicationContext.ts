@@ -37,6 +37,7 @@ export class ApplicationContext {
       this.configuration.config.REMOVE_SOURCE_AFTER_CONVERT_DELAY,
       this.configuration.config.REMOVE_SOURCE_AFTER_CONVERT,
       this.configuration.config.VERSION,
+      this.configuration.config.CONCURRENCY,
     );
   }
 }
