@@ -5,36 +5,13 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "tsx src/startService.ts",
-    "build": "wireit",
-    "bundle": "wireit",
-    "check": "wireit",
-    "check:fix": "wireit",
-    "ci": "wireit",
+    "build": "tsc",
+    "bundle": "pnpm run build && esbuild build/startService.js --bundle --platform=node --target=node22 --outdir=./build/bundle",
+    "check": "biome check",
+    "check:fix": "biome check --write --unsafe --no-errors-on-unmatched",
+    "ci": "pnpm run check && pnpm run build",
     "dependency-update": "npm-check-updates -u --filterVersion \"/^[~^<>]| - |\\.x$/\" --deep && pnpm install --no-frozen-lockfile",
     "prepare": "husky"
-  },
-  "wireit": {
-    "build": {
-      "command": "tsc"
-    },
-    "bundle": {
-      "command": "esbuild build/startService.js --bundle --platform=node --target=node22 --outdir=./build/bundle",
-      "dependencies": [
-        "build"
-      ]
-    },
-    "check": {
-      "command": "biome check"
-    },
-    "check:fix": {
-      "command": "biome check --write --unsafe --no-errors-on-unmatched"
-    },
-    "ci": {
-      "dependencies": [
-        "check",
-        "build"
-      ]
-    }
   },
   "keywords": [],
   "author": "Kenneth Wußmann",
@@ -53,8 +30,7 @@
     "lint-staged": "^16.4.0",
     "npm-check-updates": "^20.0.0",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2",
-    "wireit": "^0.14.12"
+    "typescript": "^6.0.2"
   },
   "dependencies": {
     "dotenv": "^17.4.0",
