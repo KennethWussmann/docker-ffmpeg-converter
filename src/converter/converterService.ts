@@ -1,15 +1,21 @@
 import { rm } from "node:fs/promises";
-import type { FFMPEGService, FileWatcherService, Logger } from "../";
+import type { FFMPEGService, FileLock, FileLockService, FileWatcherService, Logger } from "../";
+
+type QueuedFile = {
+  file: string;
+  lock: FileLock;
+};
 
 export class ConverterService {
   private readonly abortController = new AbortController();
-  private readonly queue: string[] = [];
+  private readonly queue: QueuedFile[] = [];
   private activeCount = 0;
 
   constructor(
     private logger: Logger,
     private fileWatcherService: FileWatcherService,
     private ffmpegService: FFMPEGService,
+    private fileLockService: FileLockService,
     private removeDelay: number,
     private removeSourceFileAfterConvert: boolean,
     private version: string,
@@ -23,6 +29,7 @@ export class ConverterService {
       version: this.version,
       concurrency: this.concurrency,
     });
+    await this.fileLockService.initialize();
     const ffmpegVersion = await this.ffmpegService.getVersion();
     this.logger.info("This software uses libraries from the FFmpeg project under the LGPLv2.1", {
       ffmpegVersion,
@@ -42,8 +49,15 @@ export class ConverterService {
     await rm(file);
   };
 
-  private onNewFile = (file: string) => {
-    this.queue.push(file);
+  private onNewFile = async (file: string) => {
+    const lock = await this.acquireLock(file);
+
+    if (!lock) {
+      this.logger.info("Skipping file because no lock could be acquired", { file });
+      return;
+    }
+
+    this.queue.push({ file, lock });
     this.logger.info("Queued file for conversion", {
       file,
       queueLength: this.queue.length,
@@ -52,21 +66,30 @@ export class ConverterService {
     this.processQueue();
   };
 
-  private processQueue = () => {
-    while (this.activeCount < this.concurrency && this.queue.length > 0) {
-      const file = this.queue.shift();
-      if (!file) break;
-      this.activeCount++;
-      this.logger.info("Converting file", {
-        file,
-        activeCount: this.activeCount,
-        remaining: this.queue.length,
-      });
-      void this.convertFile(file);
+  private acquireLock = async (file: string) => {
+    try {
+      return await this.fileLockService.acquire(file);
+    } catch (error) {
+      this.logger.error("Failed to acquire file lock", { file, error });
+      return undefined;
     }
   };
 
-  private convertFile = async (file: string) => {
+  private processQueue = () => {
+    while (this.activeCount < this.concurrency && this.queue.length > 0) {
+      const queuedFile = this.queue.shift();
+      if (!queuedFile) break;
+      this.activeCount++;
+      this.logger.info("Converting file", {
+        file: queuedFile.file,
+        activeCount: this.activeCount,
+        remaining: this.queue.length,
+      });
+      void this.convertFile(queuedFile);
+    }
+  };
+
+  private convertFile = async ({ file, lock }: QueuedFile) => {
     try {
       await this.ffmpegService.exec(this.abortController.signal, file);
       this.logger.info("Successfully converted file", { file });
@@ -76,12 +99,16 @@ export class ConverterService {
         return;
       }
 
-      setTimeout(async () => {
-        await this.removeSourceFile(file);
-      }, this.removeDelay * 1000);
+      await new Promise((resolve) => setTimeout(resolve, this.removeDelay * 1000));
+      await this.removeSourceFile(file);
     } catch (error) {
       this.logger.error("Failed to convert file", { file, error });
     } finally {
+      try {
+        await lock.release();
+      } catch (error) {
+        this.logger.error("Failed to release file lock", { file, error });
+      }
       this.activeCount--;
       void this.processQueue();
     }

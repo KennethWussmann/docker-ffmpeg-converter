@@ -1,4 +1,4 @@
-import { ConverterService, FFMPEGService } from "../converter";
+import { ConverterService, FFMPEGService, FileLockService } from "../converter";
 import { FileWatcherService } from "../watcher/fileWatcherService";
 import { Configuration } from "./configuration";
 import { createLogger, type Logger } from "./logger";
@@ -7,6 +7,7 @@ export class ApplicationContext {
   private readonly rootLogger: Logger;
   public readonly fileWatcherService: FileWatcherService;
   public readonly ffmpegService: FFMPEGService;
+  public readonly fileLockService: FileLockService;
   public readonly converterService: ConverterService;
 
   constructor(private configuration: Configuration = new Configuration()) {
@@ -30,10 +31,18 @@ export class ApplicationContext {
       this.configuration.config.FFMPEG_ARGS,
       this.configuration.config.DESTINATION_DIRECTORY_PATH,
     );
+    this.fileLockService = new FileLockService(
+      this.rootLogger.child({ name: "FileLockService" }),
+      this.configuration.config.SERVER_NAME,
+      this.configuration.config.LOCK_ENABLED,
+      this.configuration.config.LOCK_DIRECTORY_PATH,
+      this.configuration.config.LOCK_STALE_AFTER_SECONDS,
+    );
     this.converterService = new ConverterService(
       this.rootLogger.child({ name: "ConverterService" }),
       this.fileWatcherService,
       this.ffmpegService,
+      this.fileLockService,
       this.configuration.config.REMOVE_SOURCE_AFTER_CONVERT_DELAY,
       this.configuration.config.REMOVE_SOURCE_AFTER_CONVERT,
       this.configuration.config.VERSION,
