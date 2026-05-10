@@ -23,10 +23,11 @@ export class FileWatcherService extends EventEmitter {
     this.scanInterval = scanInterval * 1000; // secs to ms
   }
 
-  start = () => {
+  start = async () => {
     if (this.isRunning()) {
       throw new Error("Watcher task already running");
     }
+    await this.fileLockService.initialize();
     this.logger.info("Starting to poll for new files in source directory", {
       sourceDirectory: this.sourceDirectory,
       patterns: this.patterns,

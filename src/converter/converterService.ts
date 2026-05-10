@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import type { FFMPEGService, FileLock, FileLockService, FileWatcherService, Logger } from "../";
+import type { FFMPEGService, FileLock, FileWatcherService, Logger } from "../";
 
 type QueuedFile = {
   file: string;
@@ -15,7 +15,6 @@ export class ConverterService {
     private logger: Logger,
     private fileWatcherService: FileWatcherService,
     private ffmpegService: FFMPEGService,
-    private fileLockService: FileLockService,
     private removeDelay: number,
     private removeSourceFileAfterConvert: boolean,
     private version: string,
@@ -29,12 +28,11 @@ export class ConverterService {
       version: this.version,
       concurrency: this.concurrency,
     });
-    await this.fileLockService.initialize();
     const ffmpegVersion = await this.ffmpegService.getVersion();
     this.logger.info("This software uses libraries from the FFmpeg project under the LGPLv2.1", {
       ffmpegVersion,
     });
-    this.fileWatcherService.start();
+    await this.fileWatcherService.start();
   };
 
   stop = () => {
@@ -95,7 +93,7 @@ export class ConverterService {
       try {
         await lock.release({ completed: completed && !this.removeSourceFileAfterConvert });
       } catch (error) {
-        this.logger.error("Failed to release file lock", { file, error });
+        this.logger.error("Failed to release lock", { file, error });
       }
       this.activeCount--;
       void this.processQueue();

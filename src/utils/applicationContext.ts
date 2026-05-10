@@ -43,7 +43,6 @@ export class ApplicationContext {
       this.rootLogger.child({ name: "ConverterService" }),
       this.fileWatcherService,
       this.ffmpegService,
-      this.fileLockService,
       this.configuration.config.REMOVE_SOURCE_AFTER_CONVERT_DELAY,
       this.configuration.config.REMOVE_SOURCE_AFTER_CONVERT,
       this.configuration.config.VERSION,

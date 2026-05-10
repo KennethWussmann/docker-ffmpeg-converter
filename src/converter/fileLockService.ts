@@ -42,7 +42,7 @@ export class FileLockService {
     }
 
     await mkdir(this.lockDirectoryPath, { recursive: true });
-    this.logger.info("Initialized file lock service", {
+    this.logger.info("Initialized lock directory service", {
       serverName: this.serverName,
       runId: this.runId,
       lockDirectoryPath: this.lockDirectoryPath,
@@ -60,11 +60,11 @@ export class FileLockService {
 
     try {
       await this.createLock(lockPath, metadata);
-      this.logger.debug("Acquired file lock", { sourceFile, lockPath });
+      this.logger.debug("Acquired lock directory", { sourceFile, lockPath });
       return this.toFileLock(sourceFile, lockPath);
     } catch (error) {
       if (!this.isFileExistsError(error)) {
-        this.logger.error("Failed to acquire file lock", { sourceFile, lockPath, error });
+        this.logger.error("Failed to acquire lock directory", { sourceFile, lockPath, error });
         return undefined;
       }
 
@@ -80,13 +80,16 @@ export class FileLockService {
     const existingLock = await this.readLock(lockPath);
 
     if (!existingLock && !(await this.isUnreadableLockReclaimable(lockPath))) {
-      this.logger.warn("Skipping file because an unreadable lock exists", { sourceFile, lockPath });
+      this.logger.warn("Skipping file because an unreadable lock directory exists", {
+        sourceFile,
+        lockPath,
+      });
       return undefined;
     }
 
     if (existingLock?.status === "completed") {
       if (await this.isCompletedLockCurrent(existingLock, sourceFile)) {
-        this.logger.info("Skipping file because it was already completed", {
+        this.logger.debug("Skipping file because it was already completed", {
           sourceFile,
           lockPath,
           existingLock,
@@ -113,15 +116,18 @@ export class FileLockService {
     try {
       await rename(lockPath, reclaimPath);
     } catch (error) {
-      this.logger.info("Skipping file because stale lock was claimed by another process", {
-        sourceFile,
-        lockPath,
-        error,
-      });
+      this.logger.info(
+        "Skipping file because stale lock directory was claimed by another process",
+        {
+          sourceFile,
+          lockPath,
+          error,
+        },
+      );
       return undefined;
     }
 
-    this.logger.warn("Reclaiming stale file lock", {
+    this.logger.warn("Reclaiming stale lock directory", {
       sourceFile,
       lockPath,
       reclaimPath,
@@ -131,14 +137,17 @@ export class FileLockService {
 
     try {
       await this.createLock(lockPath, metadata);
-      this.logger.debug("Acquired reclaimed file lock", { sourceFile, lockPath });
+      this.logger.debug("Acquired reclaimed lock directory", { sourceFile, lockPath });
       return this.toFileLock(sourceFile, lockPath);
     } catch (error) {
-      this.logger.info("Skipping file because reclaimed lock was claimed by another process", {
-        sourceFile,
-        lockPath,
-        error,
-      });
+      this.logger.info(
+        "Skipping file because reclaimed lock directory was claimed by another process",
+        {
+          sourceFile,
+          lockPath,
+          error,
+        },
+      );
       return undefined;
     }
   };
@@ -172,7 +181,7 @@ export class FileLockService {
       }
 
       if (existingLock.runId !== this.runId) {
-        this.logger.warn("Not releasing file lock because it belongs to another run", {
+        this.logger.warn("Not releasing lock directory because it belongs to another run", {
           sourceFile,
           lockPath,
           existingLock,
@@ -190,12 +199,12 @@ export class FileLockService {
             completedAt: new Date().toISOString(),
           }),
         );
-        this.logger.debug("Marked file lock as completed", { sourceFile, lockPath });
+        this.logger.debug("Marked lock directory as completed", { sourceFile, lockPath });
         return;
       }
 
       await rm(lockPath, { recursive: true, force: true });
-      this.logger.debug("Released file lock", { sourceFile, lockPath });
+      this.logger.debug("Released lock directory", { sourceFile, lockPath });
     },
   });
 
@@ -218,7 +227,7 @@ export class FileLockService {
       const content = await readFile(this.getMetadataPath(lockPath), "utf8");
       return JSON.parse(content) as LockMetadata;
     } catch (error) {
-      this.logger.warn("Failed to read file lock", { lockPath, error });
+      this.logger.warn("Failed to read lock directory", { lockPath, error });
       return undefined;
     }
   };
@@ -267,7 +276,7 @@ export class FileLockService {
       const stats = await stat(lockPath);
       return this.isStale(stats.mtimeMs);
     } catch (error) {
-      this.logger.warn("Failed to stat unreadable file lock", { lockPath, error });
+      this.logger.warn("Failed to stat unreadable lock directory", { lockPath, error });
       return false;
     }
   };

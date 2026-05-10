@@ -70,12 +70,12 @@ Configure the container through environment variables. Here's a breakdown of wha
   <tr>
     <td><code>SERVER_NAME</code></td>
     <td>Yes</td>
-    <td>Stable name for this logical converter. Instances that perform the same conversion against the same files should use the same value so they share file locks. Different pipeline steps should use different values.</td>
+    <td>Stable name for this logical converter. Instances that perform the same conversion against the same files should use the same value so they share lock directories. Different pipeline steps should use different values.</td>
   </tr>
   <tr>
     <td><code>LOCK_ENABLED</code></td>
     <td>No (default: <code>true</code>)</td>
-    <td><code>true</code> or <code>false</code>. Whether file locking is enabled. Set to <code>false</code> to disable all lock file behavior.</td>
+    <td><code>true</code> or <code>false</code>. Whether file locking is enabled. Set to <code>false</code> to disable all locking behavior.</td>
   </tr>
   <tr>
     <td><code>LOCK_DIRECTORY_PATH</code></td>
@@ -207,7 +207,7 @@ services:
       - FFMPEG_ARGS=-y -i %s -vf fps=1/4 %s_%04d.png
 ```
 
-The output directory will then contain multiple thumbnails and a converted MP4 file of our source material. Because the containers use different `SERVER_NAME` values, they use separate file locks and can run simultaneously.
+The output directory will then contain multiple thumbnails and a converted MP4 file of our source material. Because the containers use different `SERVER_NAME` values, they use separate lock directories and can run simultaneously.
 
 When scaling the same converter horizontally, use the same `SERVER_NAME` and the same shared `LOCK_DIRECTORY_PATH` for all replicas. By default, `LOCK_DIRECTORY_PATH` resolves to `SOURCE_DIRECTORY_PATH/.locks`, which is enough when all replicas share the same source directory mount. This prevents two replicas of the same logical converter from processing the same source file at the same time. Set `LOCK_ENABLED=false` to disable locking entirely.
 
