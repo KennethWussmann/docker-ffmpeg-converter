@@ -1,5 +1,5 @@
-import { ConverterService, FFMPEGService, FileLockService } from "../converter";
-import { FileWatcherService } from "../watcher/fileWatcherService";
+import { ConverterService, FFMPEGService } from "../converter";
+import { FileLockService, FileWatcherService } from "../watcher";
 import { Configuration } from "./configuration";
 import { createLogger, type Logger } from "./logger";
 

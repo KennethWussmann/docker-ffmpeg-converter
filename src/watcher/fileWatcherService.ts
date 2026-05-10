@@ -3,7 +3,8 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 import type { Logger } from "winston";
 import { glob } from "zx";
-import type { FileLock, FileLockService } from "../converter/fileLockService";
+import type { FileLockService } from "./fileLockService";
+import type { FileLock } from "./fileLockTypes";
 import { FileSizeTracker } from "./fileSizeTracker";
 
 export class FileWatcherService extends EventEmitter {

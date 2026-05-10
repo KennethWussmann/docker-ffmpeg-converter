@@ -1,28 +1,9 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { resolve } from "node:path";
 import type { Logger } from "winston";
-
-export type FileLock = {
-  sourceFile: string;
-  lockPath: string;
-  release: (options?: FileLockReleaseOptions) => Promise<void>;
-};
-
-type FileLockReleaseOptions = {
-  completed: boolean;
-};
-
-type LockMetadata = {
-  serverName: string;
-  runId: string;
-  sourceFile: string;
-  sourceSize: number;
-  sourceModifiedAtMs: number;
-  createdAt: string;
-  status: "active" | "completed";
-  completedAt?: string;
-};
+import { getLockPath, getMetadataPath } from "./fileLockPaths";
+import type { FileLock, LockMetadata } from "./fileLockTypes";
 
 export class FileLockService {
   private readonly runId = randomUUID();
@@ -55,7 +36,7 @@ export class FileLockService {
       return this.toUnlockedFile(sourceFile);
     }
 
-    const lockPath = this.getLockPath(sourceFile);
+    const lockPath = getLockPath(this.lockDirectoryPath, this.serverName, sourceFile);
     const metadata = await this.createMetadata(sourceFile);
 
     try {
@@ -156,7 +137,7 @@ export class FileLockService {
     await mkdir(lockPath);
 
     try {
-      await writeFile(this.getMetadataPath(lockPath), JSON.stringify(metadata));
+      await writeFile(getMetadataPath(lockPath), JSON.stringify(metadata));
     } catch (error) {
       await rm(lockPath, { recursive: true, force: true });
       throw error;
@@ -192,7 +173,7 @@ export class FileLockService {
 
       if (options?.completed) {
         await writeFile(
-          this.getMetadataPath(lockPath),
+          getMetadataPath(lockPath),
           JSON.stringify({
             ...existingLock,
             status: "completed",
@@ -224,7 +205,7 @@ export class FileLockService {
 
   private readLock = async (lockPath: string): Promise<LockMetadata | undefined> => {
     try {
-      const content = await readFile(this.getMetadataPath(lockPath), "utf8");
+      const content = await readFile(getMetadataPath(lockPath), "utf8");
       return JSON.parse(content) as LockMetadata;
     } catch (error) {
       this.logger.warn("Failed to read lock directory", { lockPath, error });
@@ -283,16 +264,6 @@ export class FileLockService {
 
   private isStale = (timestamp: number) =>
     Date.now() - timestamp > this.lockStaleAfterSeconds * 1000;
-
-  private getLockPath = (sourceFile: string) => {
-    const resolvedSourceFile = resolve(sourceFile);
-    const hash = createHash("sha256").update(resolvedSourceFile).digest("hex");
-    const name = basename(sourceFile).replace(/[^a-zA-Z0-9._-]/g, "_");
-    const serverName = this.serverName.replace(/[^a-zA-Z0-9._-]/g, "_");
-    return join(this.lockDirectoryPath, `${serverName}-${name}-${hash}.lock`);
-  };
-
-  private getMetadataPath = (lockPath: string) => join(lockPath, "metadata.json");
 
   private isFileExistsError = (error: unknown) =>
     typeof error === "object" && error !== null && "code" in error && error.code === "EEXIST";

@@ -1,5 +1,7 @@
 import { rm } from "node:fs/promises";
-import type { FFMPEGService, FileLock, FileWatcherService, Logger } from "../";
+import type { Logger } from "winston";
+import type { FileLock, FileWatcherService } from "../watcher";
+import type { FFMPEGService } from "./ffmpegService";
 
 type QueuedFile = {
   file: string;
