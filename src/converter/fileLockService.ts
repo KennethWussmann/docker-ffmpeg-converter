@@ -1,20 +1,27 @@
 import { createHash, randomUUID } from "node:crypto";
-import { constants } from "node:fs";
-import { mkdir, open, readFile, rm } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import type { Logger } from "winston";
 
 export type FileLock = {
   sourceFile: string;
   lockPath: string;
-  release: () => Promise<void>;
+  release: (options?: FileLockReleaseOptions) => Promise<void>;
+};
+
+type FileLockReleaseOptions = {
+  completed: boolean;
 };
 
 type LockMetadata = {
   serverName: string;
   runId: string;
   sourceFile: string;
+  sourceSize: number;
+  sourceModifiedAtMs: number;
   createdAt: string;
+  status: "active" | "completed";
+  completedAt?: string;
 };
 
 export class FileLockService {
@@ -49,7 +56,7 @@ export class FileLockService {
     }
 
     const lockPath = this.getLockPath(sourceFile);
-    const metadata = this.createMetadata(sourceFile);
+    const metadata = await this.createMetadata(sourceFile);
 
     try {
       await this.createLock(lockPath, metadata);
@@ -72,12 +79,27 @@ export class FileLockService {
   ): Promise<FileLock | undefined> => {
     const existingLock = await this.readLock(lockPath);
 
-    if (!existingLock) {
+    if (!existingLock && !(await this.isUnreadableLockReclaimable(lockPath))) {
       this.logger.warn("Skipping file because an unreadable lock exists", { sourceFile, lockPath });
       return undefined;
     }
 
-    if (!this.isReclaimable(existingLock)) {
+    if (existingLock?.status === "completed") {
+      if (await this.isCompletedLockCurrent(existingLock, sourceFile)) {
+        this.logger.info("Skipping file because it was already completed", {
+          sourceFile,
+          lockPath,
+          existingLock,
+        });
+        return undefined;
+      }
+
+      this.logger.info("Reprocessing file because completed lock is outdated", {
+        sourceFile,
+        lockPath,
+        existingLock,
+      });
+    } else if (existingLock && !this.isReclaimable(existingLock)) {
       this.logger.info("Skipping file because it is locked", {
         sourceFile,
         lockPath,
@@ -86,15 +108,33 @@ export class FileLockService {
       return undefined;
     }
 
-    this.logger.warn("Reclaiming stale file lock", { sourceFile, lockPath, existingLock });
-    await rm(lockPath, { force: true });
+    const reclaimPath = `${lockPath}.reclaiming-${this.runId}-${randomUUID()}`;
+
+    try {
+      await rename(lockPath, reclaimPath);
+    } catch (error) {
+      this.logger.info("Skipping file because stale lock was claimed by another process", {
+        sourceFile,
+        lockPath,
+        error,
+      });
+      return undefined;
+    }
+
+    this.logger.warn("Reclaiming stale file lock", {
+      sourceFile,
+      lockPath,
+      reclaimPath,
+      existingLock,
+    });
+    await rm(reclaimPath, { recursive: true, force: true });
 
     try {
       await this.createLock(lockPath, metadata);
       this.logger.debug("Acquired reclaimed file lock", { sourceFile, lockPath });
       return this.toFileLock(sourceFile, lockPath);
     } catch (error) {
-      this.logger.info("Skipping file because stale lock was claimed by another process", {
+      this.logger.info("Skipping file because reclaimed lock was claimed by another process", {
         sourceFile,
         lockPath,
         error,
@@ -104,14 +144,13 @@ export class FileLockService {
   };
 
   private createLock = async (lockPath: string, metadata: LockMetadata) => {
-    const fileHandle = await open(
-      lockPath,
-      constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY,
-    );
+    await mkdir(lockPath);
+
     try {
-      await fileHandle.writeFile(JSON.stringify(metadata));
-    } finally {
-      await fileHandle.close();
+      await writeFile(this.getMetadataPath(lockPath), JSON.stringify(metadata));
+    } catch (error) {
+      await rm(lockPath, { recursive: true, force: true });
+      throw error;
     }
   };
 
@@ -124,11 +163,11 @@ export class FileLockService {
   private toFileLock = (sourceFile: string, lockPath: string): FileLock => ({
     sourceFile,
     lockPath,
-    release: async () => {
+    release: async (options) => {
       const existingLock = await this.readLock(lockPath);
 
       if (!existingLock) {
-        await rm(lockPath, { force: true });
+        await rm(lockPath, { recursive: true, force: true });
         return;
       }
 
@@ -142,21 +181,41 @@ export class FileLockService {
         return;
       }
 
-      await rm(lockPath, { force: true });
+      if (options?.completed) {
+        await writeFile(
+          this.getMetadataPath(lockPath),
+          JSON.stringify({
+            ...existingLock,
+            status: "completed",
+            completedAt: new Date().toISOString(),
+          }),
+        );
+        this.logger.debug("Marked file lock as completed", { sourceFile, lockPath });
+        return;
+      }
+
+      await rm(lockPath, { recursive: true, force: true });
       this.logger.debug("Released file lock", { sourceFile, lockPath });
     },
   });
 
-  private createMetadata = (sourceFile: string): LockMetadata => ({
-    serverName: this.serverName,
-    runId: this.runId,
-    sourceFile: resolve(sourceFile),
-    createdAt: new Date().toISOString(),
-  });
+  private createMetadata = async (sourceFile: string): Promise<LockMetadata> => {
+    const sourceStats = await stat(sourceFile);
+
+    return {
+      serverName: this.serverName,
+      runId: this.runId,
+      sourceFile: resolve(sourceFile),
+      sourceSize: sourceStats.size,
+      sourceModifiedAtMs: sourceStats.mtimeMs,
+      createdAt: new Date().toISOString(),
+      status: "active",
+    };
+  };
 
   private readLock = async (lockPath: string): Promise<LockMetadata | undefined> => {
     try {
-      const content = await readFile(lockPath, "utf8");
+      const content = await readFile(this.getMetadataPath(lockPath), "utf8");
       return JSON.parse(content) as LockMetadata;
     } catch (error) {
       this.logger.warn("Failed to read file lock", { lockPath, error });
@@ -166,6 +225,10 @@ export class FileLockService {
 
   private isReclaimable = (metadata: LockMetadata) => {
     if (this.lockStaleAfterSeconds <= 0) {
+      return false;
+    }
+
+    if (metadata.status === "completed") {
       return false;
     }
 
@@ -179,8 +242,38 @@ export class FileLockService {
       return false;
     }
 
-    return Date.now() - createdAt > this.lockStaleAfterSeconds * 1000;
+    return this.isStale(createdAt);
   };
+
+  private isCompletedLockCurrent = async (metadata: LockMetadata, sourceFile: string) => {
+    try {
+      const sourceStats = await stat(sourceFile);
+      return (
+        metadata.sourceSize === sourceStats.size &&
+        metadata.sourceModifiedAtMs === sourceStats.mtimeMs
+      );
+    } catch (error) {
+      this.logger.warn("Failed to stat source file for completed lock", { sourceFile, error });
+      return true;
+    }
+  };
+
+  private isUnreadableLockReclaimable = async (lockPath: string) => {
+    if (this.lockStaleAfterSeconds <= 0) {
+      return false;
+    }
+
+    try {
+      const stats = await stat(lockPath);
+      return this.isStale(stats.mtimeMs);
+    } catch (error) {
+      this.logger.warn("Failed to stat unreadable file lock", { lockPath, error });
+      return false;
+    }
+  };
+
+  private isStale = (timestamp: number) =>
+    Date.now() - timestamp > this.lockStaleAfterSeconds * 1000;
 
   private getLockPath = (sourceFile: string) => {
     const resolvedSourceFile = resolve(sourceFile);
@@ -189,6 +282,8 @@ export class FileLockService {
     const serverName = this.serverName.replace(/[^a-zA-Z0-9._-]/g, "_");
     return join(this.lockDirectoryPath, `${serverName}-${name}-${hash}.lock`);
   };
+
+  private getMetadataPath = (lockPath: string) => join(lockPath, "metadata.json");
 
   private isFileExistsError = (error: unknown) =>
     typeof error === "object" && error !== null && "code" in error && error.code === "EEXIST";

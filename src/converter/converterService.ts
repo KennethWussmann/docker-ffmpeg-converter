@@ -49,30 +49,14 @@ export class ConverterService {
     await rm(file);
   };
 
-  private onNewFile = async (file: string) => {
-    const lock = await this.acquireLock(file);
-
-    if (!lock) {
-      this.logger.info("Skipping file because no lock could be acquired", { file });
-      return;
-    }
-
-    this.queue.push({ file, lock });
+  private onNewFile = (lock: FileLock) => {
+    this.queue.push({ file: lock.sourceFile, lock });
     this.logger.info("Queued file for conversion", {
-      file,
+      file: lock.sourceFile,
       queueLength: this.queue.length,
       activeCount: this.activeCount,
     });
     this.processQueue();
-  };
-
-  private acquireLock = async (file: string) => {
-    try {
-      return await this.fileLockService.acquire(file);
-    } catch (error) {
-      this.logger.error("Failed to acquire file lock", { file, error });
-      return undefined;
-    }
   };
 
   private processQueue = () => {
@@ -90,22 +74,26 @@ export class ConverterService {
   };
 
   private convertFile = async ({ file, lock }: QueuedFile) => {
+    let completed = false;
+
     try {
       await this.ffmpegService.exec(this.abortController.signal, file);
       this.logger.info("Successfully converted file", { file });
 
       if (!this.removeSourceFileAfterConvert) {
         this.logger.debug("Not removing source file because setting is disabled");
+        completed = true;
         return;
       }
 
       await new Promise((resolve) => setTimeout(resolve, this.removeDelay * 1000));
       await this.removeSourceFile(file);
+      completed = true;
     } catch (error) {
       this.logger.error("Failed to convert file", { file, error });
     } finally {
       try {
-        await lock.release();
+        await lock.release({ completed: completed && !this.removeSourceFileAfterConvert });
       } catch (error) {
         this.logger.error("Failed to release file lock", { file, error });
       }
