@@ -10,4 +10,7 @@ services:
       - LOG_DESTINATION=/data/logs
       - SOURCE_DIRECTORY_PATH=/data/input
       - DESTINATION_DIRECTORY_PATH=/data/output
+      - SERVER_NAME=ffmpeg
+      - LOCK_ENABLED=true
+      - LOCK_STALE_AFTER_SECONDS=86400
       - FFMPEG_PATH=/usr/bin/ffmpeg

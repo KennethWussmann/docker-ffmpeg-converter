@@ -5,7 +5,7 @@
   </p>
 </div>
 
-## 🌟 Overview
+## Overview
 docker-ffmpeg-converter automates the process of file conversion by:
 1. **Monitoring** an input directory for new files.
 2. **Utilizing** [ffmpeg](https://www.ffmpeg.org/) to perform specified conversion operations.
@@ -13,7 +13,7 @@ docker-ffmpeg-converter automates the process of file conversion by:
 
 Whether you are building a small pipeline or conducting background conversions of multiple files, docker-ffmpeg-converter efficiently handles it all. Run multiple instances and make your conversion process more versatile and robust.
 
-## 🚀 Deployment
+## Deployment
 
 Deploying docker-ffmpeg-converter is a breeze with Docker Compose. Below is an example YAML configuration file:
 
@@ -27,13 +27,14 @@ services:
       - ./data:/data
     environment:
       # See below for all options and their meaning. This is just the required set.
+      - SERVER_NAME=webm-to-mp4
       - SOURCE_DIRECTORY_PATH=/data/input
       - DESTINATION_DIRECTORY_PATH=/data/output
       - GLOB_PATTERNS=*.webm
       - FFMPEG_ARGS=-y -fflags +genpts -i %s -r 24 %s.mp4
 ```
 
-### 🏷️ Tags
+### Tags
 
 This image is built for `arm64` and `amd64`.
 
@@ -41,7 +42,7 @@ This image is built for `arm64` and `amd64`.
 - `x.x.x` - Specific version under Semver ([See all versions](https://github.com/KennethWussmann/docker-ffmpeg-converter/pkgs/container/docker-ffmpeg-converter/versions))
 - `develop` - Unstable pre-release development version
 
-### 🔧 Configuration
+### Configuration
 
 Configure the container through environment variables. Here's a breakdown of what you can customize:
 
@@ -65,6 +66,26 @@ Configure the container through environment variables. Here's a breakdown of wha
     <td><code>GLOB_PATTERNS</code></td>
     <td>Yes</td>
     <td>Comma-separated list of glob patterns the service will use to filter files in the <code>SOURCE_DIRECTORY_PATH</code></td>
+  </tr>
+  <tr>
+    <td><code>SERVER_NAME</code></td>
+    <td>Yes</td>
+    <td>Stable name for this logical converter. Instances that perform the same conversion against the same files should use the same value so they share lock directories. Different pipeline steps should use different values.</td>
+  </tr>
+  <tr>
+    <td><code>LOCK_ENABLED</code></td>
+    <td>No (default: <code>true</code>)</td>
+    <td><code>true</code> or <code>false</code>. Whether file locking is enabled. Set to <code>false</code> to disable all locking behavior.</td>
+  </tr>
+  <tr>
+    <td><code>LOCK_DIRECTORY_PATH</code></td>
+    <td>No (default: <code>SOURCE_DIRECTORY_PATH/.locks</code>)</td>
+    <td>Directory where lock directories are stored. This path must be on a volume shared by all instances that should coordinate with each other.</td>
+  </tr>
+  <tr>
+    <td><code>LOCK_STALE_AFTER_SECONDS</code></td>
+    <td>No (default: <code>0</code>)</td>
+    <td>Age in seconds after which stale locks created by the same <code>SERVER_NAME</code> may be reclaimed. Set to <code>0</code> to disable automatic stale lock recovery. Choose a value longer than the maximum expected conversion time.</td>
   </tr>
   <tr>
     <td><code>FFMPEG_ARGS</code></td>
@@ -113,13 +134,14 @@ Configure the container through environment variables. Here's a breakdown of wha
   </tr>
 </table>
 
-## 💼 How the Service Works
+## How the Service Works
 
-### 📂 File Monitoring and Conversion
+### File Monitoring and Conversion
 
 1. **File Detection**: The service continually polls the `SOURCE_DIRECTORY_PATH`, filtering files using the specified `GLOB_PATTERNS`. 
 2. **File Verification**: New files are cached and checked for size stability, based on `FILE_UNCHANGED_INTERVALS`.
-3. **Conversion**: Stable files are handed to the converter, building an ffmpeg command with `FFMPEG_ARGS`.
+3. **Locking**: After a file is considered stable, the watcher claims it with an atomic lock directory in `LOCK_DIRECTORY_PATH`, unless `LOCK_ENABLED=false`. The lock name includes `SERVER_NAME`, so identical converter instances should use the same `SERVER_NAME`, while different pipeline steps should use different values. If a stable file cannot be locked because another instance owns it, the watcher does not mark it as consumed and may retry it during a later scan.
+4. **Conversion**: Claimed files are handed to the converter, building an ffmpeg command with `FFMPEG_ARGS`.
 
 Example:
 ```shell
@@ -129,18 +151,28 @@ DESTINATION_DIRECTORY_PATH=/data/output
 ```
 Resulting command:
 ```shell
-/usr/bin/ffmpeg -y -fflags +genpts -i /data/input/myfile.webm -r 24 /data/input/myfile.mp4
+/usr/bin/ffmpeg -y -fflags +genpts -i /data/input/myfile.webm -r 24 /data/output/myfile.mp4
 ```
 > Note: The order of `%s` is vital. The first represents the source file and the second the destination.
 
-4. **Post-Conversion**: Depending on `REMOVE_SOURCE_AFTER_CONVERT`, the source file may be deleted after successful conversion.
+5. **Post-Conversion**: Depending on `REMOVE_SOURCE_AFTER_CONVERT`, the source file may be deleted after successful conversion. If the source file is removed, the lock is removed after conversion or after delayed source removal when `REMOVE_SOURCE_AFTER_CONVERT_DELAY` is configured. If the source file is kept, the lock is marked as completed so other replicas do not process the same retained source file again.
 
-### ⏱️ Custom Intervals and Patterns
+### Custom Intervals and Patterns
 
 - **Scan Interval**: Adjust the polling frequency with `SCAN_INTERVAL`, defining the seconds between each search.
 - **File Unchanged Intervals**: Customize the number of cycles to wait for file size stability using `FILE_UNCHANGED_INTERVALS`.
 
-## 🔗 Pipeline example
+### File Locking
+
+File locking is designed for shared folders such as NAS or NFS-backed Docker volumes. Locks are created as directories using atomic directory creation. Each lock directory contains a `metadata.json` file with the `SERVER_NAME`, a per-process run id, the source file path, source size, source modification time, the creation time and the lock status.
+
+Locks are only created after a file has remained unchanged for the configured stability interval. The service does not lock files while they are still being uploaded or copied into the source directory.
+
+If a lock already exists, the file is skipped for that scan. If `LOCK_STALE_AFTER_SECONDS` is greater than `0`, stale active locks owned by the same `SERVER_NAME` can be reclaimed. Completed locks are not reclaimed automatically. Reclaiming uses an atomic rename before cleanup so that multiple instances do not delete each other's fresh locks during stale lock recovery.
+
+For replicas of the same converter, use the same `SERVER_NAME` and a shared `LOCK_DIRECTORY_PATH`. For different pipeline steps that read the same source files, use different `SERVER_NAME` values. If source files are retained after conversion, completed locks prevent repeat processing of the same unchanged file. If a file at the same path changes size or modification time, it can be claimed and processed again.
+
+## Pipeline example
 
 Here is a more complex example on how to use mulitple instances:
 
@@ -156,6 +188,7 @@ services:
     environment:
       - SOURCE_DIRECTORY_PATH=/data/input
       - DESTINATION_DIRECTORY_PATH=/data/output
+      - SERVER_NAME=webm-to-mp4
       - GLOB_PATTERNS=*.webm
       # Convert *.webm files to .mp4
       - FFMPEG_ARGS=-y -fflags +genpts -i %s -r 24 %s.mp4
@@ -168,14 +201,17 @@ services:
     environment:
       - SOURCE_DIRECTORY_PATH=/data/input
       - DESTINATION_DIRECTORY_PATH=/data/output
+      - SERVER_NAME=webm-thumbnails
       - GLOB_PATTERNS=*.webm
       # Take multiple thumbnails from *.webm files
       - FFMPEG_ARGS=-y -i %s -vf fps=1/4 %s_%04d.png
 ```
 
-The output directory will then contain multiple thumbnails and a converted MP4 file of our source material. Because the containers run in parallel they finish quickly as both tasks can run simulatanously.
+The output directory will then contain multiple thumbnails and a converted MP4 file of our source material. Because the containers use different `SERVER_NAME` values, they use separate lock directories and can run simultaneously.
 
-## 🎉 Conclusion
+When scaling the same converter horizontally, use the same `SERVER_NAME` and the same shared `LOCK_DIRECTORY_PATH` for all replicas. By default, `LOCK_DIRECTORY_PATH` resolves to `SOURCE_DIRECTORY_PATH/.locks`, which is enough when all replicas share the same source directory mount. This prevents two replicas of the same logical converter from processing the same source file at the same time. Set `LOCK_ENABLED=false` to disable locking entirely.
+
+## Conclusion
 docker-ffmpeg-converter is a great solution for seamless media conversion tasks, providing robust customization and a simplified deployment process. Experience the ease of automation with this powerful Docker service.
 
-Feel free to explore, contribute, or seek support. Happy converting! 🎬
+Feel free to explore, contribute, or seek support. Happy converting!

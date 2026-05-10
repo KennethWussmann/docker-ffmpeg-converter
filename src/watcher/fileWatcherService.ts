@@ -3,6 +3,8 @@ import { statSync } from "node:fs";
 import { join } from "node:path";
 import type { Logger } from "winston";
 import { glob } from "zx";
+import type { FileLockService } from "./fileLockService";
+import type { FileLock } from "./fileLockTypes";
 import { FileSizeTracker } from "./fileSizeTracker";
 
 export class FileWatcherService extends EventEmitter {
@@ -16,15 +18,17 @@ export class FileWatcherService extends EventEmitter {
     private patterns: string[],
     scanInterval: number,
     private unchangedIntervals: number,
+    private fileLockService: FileLockService,
   ) {
     super();
     this.scanInterval = scanInterval * 1000; // secs to ms
   }
 
-  start = () => {
+  start = async () => {
     if (this.isRunning()) {
       throw new Error("Watcher task already running");
     }
+    await this.fileLockService.initialize();
     this.logger.info("Starting to poll for new files in source directory", {
       sourceDirectory: this.sourceDirectory,
       patterns: this.patterns,
@@ -42,7 +46,8 @@ export class FileWatcherService extends EventEmitter {
     this.scanIntervalTimer = undefined;
   };
 
-  onNewFile = (callback: (file: string) => void | Promise<void>) => this.on("newFile", callback);
+  onNewFile = (callback: (fileLock: FileLock) => void | Promise<void>) =>
+    this.on("newFile", callback);
 
   private scan = async () => {
     const files = await glob(this.patterns, { cwd: this.sourceDirectory });
@@ -50,32 +55,42 @@ export class FileWatcherService extends EventEmitter {
       sourceDirectory: this.sourceDirectory,
       files,
     });
-    files
-      .map((file) => join(this.sourceDirectory, file))
-      .forEach((file) => {
-        const stats = statSync(file);
-        const fileSize = stats.size;
-        const tracker = this.trackedFiles.get(file);
+    for (const file of files.map((file) => join(this.sourceDirectory, file))) {
+      const stats = statSync(file);
 
-        if (tracker) {
-          if (tracker.consumed) {
-            // file was emitted once and is ignored from now on
-            return;
-          }
+      if (!stats.isFile()) {
+        continue;
+      }
 
-          this.logger.debug("File remained unchanged during this scan", { file, tracker });
-          tracker.updateSize(fileSize);
+      const fileSize = stats.size;
+      const tracker = this.trackedFiles.get(file);
 
-          if (!tracker.consumed && tracker.isUnchangedFor(this.unchangedIntervals)) {
-            this.logger.debug("Emitting new file event for unchanged file", { file });
-            this.logger.info("New unchanged file found", { file });
-            tracker.setConsumed();
-            this.emit("newFile", file);
-          }
-        } else {
-          this.logger.debug("Caching new file", { file });
-          this.trackedFiles.set(file, new FileSizeTracker(file, fileSize));
+      if (tracker) {
+        if (tracker.consumed) {
+          // file was emitted once and is ignored from now on
+          continue;
         }
-      });
+
+        this.logger.debug("File remained unchanged during this scan", { file, tracker });
+        tracker.updateSize(fileSize);
+
+        if (!tracker.consumed && tracker.isUnchangedFor(this.unchangedIntervals)) {
+          const fileLock = await this.fileLockService.acquire(file);
+
+          if (!fileLock) {
+            this.logger.debug("File is unchanged but could not be locked", { file });
+            continue;
+          }
+
+          this.logger.debug("Emitting new file event for unchanged file", { file });
+          this.logger.info("New unchanged file found", { file });
+          tracker.setConsumed();
+          this.emit("newFile", fileLock);
+        }
+      } else {
+        this.logger.debug("Caching new file", { file });
+        this.trackedFiles.set(file, new FileSizeTracker(file, fileSize));
+      }
+    }
   };
 }
