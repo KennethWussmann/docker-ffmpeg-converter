@@ -30,30 +30,17 @@ export class FFMPEGService {
   };
 
   exec = async (abortSignal: AbortSignal, sourceFilePath: string): Promise<void> => {
-    return new Promise((resolvePromise, reject) => {
-      const { name } = parse(sourceFilePath);
-      const args = this.renderAndSplitArgs(
-        this.ffmpegArgs,
-        resolve(sourceFilePath),
-        join(resolve(this.destinationDirectory), name),
-      );
-      this.logger.debug("Launching ffmpeg process", { bin: this.ffmpegPath, args, sourceFilePath });
-      const subProcess = execa(this.ffmpegPath, args, { signal: abortSignal });
-      const subProcessLogger = this.logger.child({ name: "FFMPEGService#subprocess" });
+    const { name } = parse(sourceFilePath);
+    const args = this.renderAndSplitArgs(
+      this.ffmpegArgs,
+      resolve(sourceFilePath),
+      join(resolve(this.destinationDirectory), name),
+    );
+    this.logger.debug("Launching ffmpeg process", { bin: this.ffmpegPath, args, sourceFilePath });
+    const subProcessLogger = this.logger.child({ name: "FFMPEGService#subprocess" });
 
-      subProcess.on("close", (code, signal) => {
-        if (code && code > 0) {
-          this.logger.error("FFMPEG process exited with error", { code, signal });
-          reject();
-        } else {
-          this.logger.debug("FFMPEG process exited gracefully", { code, signal });
-          resolvePromise();
-        }
-      });
-
-      subProcess.on("error", (error) => {
-        this.logger.error("Error occoured while executing ffmpeg", { error });
-      });
+    try {
+      const subProcess = execa(this.ffmpegPath, args, { cancelSignal: abortSignal });
 
       subProcess.stdout?.on("data", (chunk) => {
         const message = Buffer.from(chunk).toString();
@@ -64,6 +51,12 @@ export class FFMPEGService {
         const message = Buffer.from(chunk).toString();
         subProcessLogger.error(message);
       });
-    });
+
+      const { exitCode, signal } = await subProcess;
+      this.logger.debug("FFMPEG process exited gracefully", { code: exitCode, signal });
+    } catch (error) {
+      this.logger.error("Error occurred while executing ffmpeg", { error });
+      throw error;
+    }
   };
 }
