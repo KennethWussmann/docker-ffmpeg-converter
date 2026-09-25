@@ -22,18 +22,18 @@
     ]
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.13",
-    "@types/node": "^26.5.1",
+    "@biomejs/biome": "^2.5.14",
+    "@types/node": "^26.6.2",
     "esbuild": "^0.28.2",
     "ffmpeg-static": "^5.3.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
     "npm-check-updates": "^23.1.0",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.2",
     "execa": "^10.0.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
