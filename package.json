@@ -23,17 +23,17 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.3",
     "esbuild": "^0.28.2",
     "ffmpeg-static": "^5.3.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.5.1",
+    "lint-staged": "^17.6.0",
     "npm-check-updates": "^23.1.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "dotenv": "^18.0.2",
+    "dotenv": "^18.0.4",
     "execa": "^10.0.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
